@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Docker Tic-Tac-Toe</title>
+  <style>
+    body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #1a1a1a; color: #fff; }
+    .board { display: grid; grid-template-columns: repeat(3, 100px); gap: 5px; margin-top: 20px; }
+    .cell { width: 100px; height: 100px; background: #333; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; cursor: pointer; border-radius: 8px; }
+    .cell:hover { background: #444; }
+    .score { font-size: 1.2rem; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <h1>Tic-Tac-Toe</h1>
+  <div class="score">Scores (Stored in Redis) &mdash; X: <span id="xScore">0</span> | O: <span id="oScore">0</span></div>
+  <div class="board" id="board"></div>
+  <h2 id="status">Player X's turn</h2>
+
+  <script>
+    let turn = 'X', board = Array(9).fill(null), active = true;
+    const boardEl = document.getElementById('board');
+
+    async function loadScores() {
+      const res = await fetch('/api/score');
+      const data = await res.json();
+      document.getElementById('xScore').innerText = data.x;
+      document.getElementById('oScore').innerText = data.o;
+    }
+
+    function createBoard() {
+      boardEl.innerHTML = '';
+      board.forEach((val, idx) => {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.innerText = val || '';
+        cell.addEventListener('click', () => handleClick(idx));
+        boardEl.appendChild(cell);
+      });
+    }
+
+    async function handleClick(idx) {
+      if (board[idx] || !active) return;
+      board[idx] = turn;
+      if (checkWin()) {
+        document.getElementById('status').innerText = `Player ${turn} Wins!`;
+        active = false;
+        await fetch('/api/win', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ winner: turn }) });
+        loadScores();
+      } else if (board.every(c => c)) {
+        document.getElementById('status').innerText = 'Draw!';
+        active = false;
+      } else {
+        turn = turn === 'X' ? 'O' : 'X';
+        document.getElementById('status').innerText = `Player ${turn}'s turn`;
+      }
+      createBoard();
+    }
+
+    function checkWin() {
+      const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+      return wins.some(([a,b,c]) => board[a] && board[a] === board[b] && board[a] === board[c]);
+    }
+
+    createBoard();
+    loadScores();
+  </script>
+</body>
+</html>
